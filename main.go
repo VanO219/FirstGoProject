@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"strconv"
 )
 
 func main() {
@@ -12,6 +14,7 @@ func main() {
 	mux.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
 		rw.WriteHeader(http.StatusMethodNotAllowed)
 	})
+	mux.HandleFunc("/num", handleDouble)
 
 	s := http.Server{
 		Addr:    "localhost:80",
@@ -33,4 +36,28 @@ func handleGoodbye(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Printf("ALARM %s", err)
 	}
+}
+
+func handleDouble(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		_, _ = w.Write([]byte("Method not Post"))
+		return
+	}
+
+	body, err := ioutil.ReadAll(r.Body)
+
+	if err != nil {
+		w.Write([]byte("Cant read request body " + err.Error()))
+		return
+	}
+
+	number, err := strconv.Atoi(string(body))
+
+	if err != nil {
+		w.Write([]byte("Fail to parse numbers"))
+		return
+	}
+
+	w.Write([]byte(strconv.Itoa(number * 2)))
+
 }
