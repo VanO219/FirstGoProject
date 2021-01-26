@@ -2,62 +2,50 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"strconv"
+	"log"
+	_ "github.com/lib/pq"
+
+	"database/sql"
 )
 
 func main() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/hello", handleHello)
-	mux.HandleFunc("/goodbye", handleGoodbye)
-	mux.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
-		rw.WriteHeader(http.StatusMethodNotAllowed)
-	})
-	mux.HandleFunc("/num", handleDouble)
+	//создаем подключение к базе данных и сохраняем в db
+	db, err := sql.Open("postgres", "postgres://postgres:123@localhost/gobase?sslmode=disable")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 
-	s := http.Server{
-		Addr:    "localhost:80",
-		Handler: mux,
+	rows, err := db.Query("SELECT * FROM notes")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+
+	type note struct {
+		id   int
+		text string
 	}
 
-	fmt.Println(s.ListenAndServe())
+	notes := []note{}
+
+	for rows.Next() {
+		p := note{}
+		err := rows.Scan(&p.id, &p.text)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		notes = append(notes, p)
+
+		for _, p := range notes {
+			fmt.Println(p.id, p.text)
+		}
+	}
+
 }
 
-func handleHello(w http.ResponseWriter, r *http.Request) {
-	_, err := w.Write([]byte("Hello HTTP"))
-	if err != nil {
-		fmt.Printf("ALARM %s", err)
-	}
-}
-
-func handleGoodbye(w http.ResponseWriter, r *http.Request) {
-	_, err := w.Write([]byte("Goodbye HTTP"))
-	if err != nil {
-		fmt.Printf("ALARM %s", err)
-	}
-}
-
-func handleDouble(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		_, _ = w.Write([]byte("Method not Post"))
-		return
-	}
-
-	body, err := ioutil.ReadAll(r.Body)
-
-	if err != nil {
-		w.Write([]byte("Cant read request body " + err.Error()))
-		return
-	}
-
-	number, err := strconv.Atoi(string(body))
-
-	if err != nil {
-		w.Write([]byte("Fail to parse numbers"))
-		return
-	}
-
-	w.Write([]byte(strconv.Itoa(number * 2)))
-
+type note struct {
+	id   int
+	text string
 }
